@@ -1,0 +1,20 @@
+#include "200.html"
+<html id="html">
+	<head>
+		<title>Seizure Snake</title>
+		<style type="text/css">
+			td {height:25px; width:25px;}
+		</style>
+		<script type="text/javascript" src="js/lib.js" ></script>
+		<script type="text/javascript" src="js/ajax.js" ></script>
+		<script type="text/javascript" src="js/seizure.js"></script>
+		<script type="text/javascript" src="js/snake.js" ></script>
+	</head>
+	<body id="body" onload="try{load();}catch(e){alert(e);}" onkeydown="pressed(event);">
+		<input type="hidden" id="SID" value=""> </input>
+		<input type="hidden" id="word" value=""> </input>
+		<input type="hidden" id="start time" value=""> </input>
+		<div id="Board" onclick="start();">
+		</div>
+	</body>
+</html>

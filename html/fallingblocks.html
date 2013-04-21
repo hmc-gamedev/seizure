@@ -1,0 +1,1110 @@
+#include "200.html"
+<html>
+<head>
+	<title> Falling Blocks</title>
+	<style type="text/css">
+	</style>
+	<script type="text/javascript">
+	
+	// useful arrays
+	var cells = [];
+	var types = [3, 4, 5, 6, 7, 8, 9];
+	
+	// tetris board canvas details
+	var cwidth = 20;
+	var cwnums = 10;
+	var chnums = 20;
+	var canwidth = (cwnums+2)*cwidth;
+	var canheight = (chnums+2)*cwidth;
+	
+	// score board canvas details
+	var score = 0;
+	var cleared = 0;
+	
+	
+	// step variables
+	var doStepTimeout;
+	var timestep = 2000;
+	var shoulddostuff = true;
+	
+	// array values for different shapes/things
+	var outside = 0;
+	var blank = 1;
+	var current = 2;
+	var squares = 3;
+	var lines = 4;
+	var tblocks = 5;
+	var jblocks = 6;
+	var lblocks = 7;
+	var sblocks = 8;
+	var zblocks = 9;
+	var currtype = 1;
+	var currstate = 0;
+	
+	// color values for different shapes/things
+	var outcolor = "rgb(0, 0, 0)";
+	var backcolor = "rgb(255, 255, 255)";
+	var sqcolor = "rgb(255, 0, 0)";
+	var linecolor = "rgb(0, 255, 0)";
+	var tblockcolor = "rgb(0, 0, 0)";
+	var jblockcolor = "rgb(0, 0, 0)";
+	var lblockcolor = "rgb(0, 0, 0)";
+	var sblockcolor = "rgb(0, 0, 0)";
+	var zblockcolor = "rgb(0, 0, 0)";
+	
+	// sets up the tetris board canvas and the score keeping canvas
+	function initialize()
+	{
+		document.getElementById("board").width = canwidth;
+		document.getElementById("board").height = canheight;
+		for (i=0; i<=chnums+1; i = i+1)
+		{
+			cells[i] = [];
+			for (j=0; j<=cwnums+1; j=j+1)
+			{
+				cells[i][j] = 1;
+			}
+		}
+		for (j=0; j<=cwnums+1; j=j+1)
+		{
+			cells[0][j] = 0;
+			cells[chnums+1][j] = 0;
+		}
+		for (i=0; i<=chnums+1; i=i+1)
+		{
+			cells[i][0] = 0;
+			cells[i][cwnums+1] = 0;
+		}
+		
+		document.getElementById("scoreboard").width = canwidth;
+		document.getElementById("scoreboard").height = canheight;
+		
+		drawboard();
+		newpiece();
+		turn();
+	}
+	
+	// refresh the board - with new colors
+	function drawboard()
+	{
+		outcolor = "rgb(" + rand() + ", " + rand() + ", " + rand() + ")";
+		backcolor = "rgb(" + rand() + ", " + rand() + ", " + rand() + ")";
+		sqcolor = "rgb(" + rand() + ", " + rand() + ", " + rand() + ")";
+		linecolor = "rgb(" + rand() + ", " + rand() + ", " + rand() + ")";
+		tblockcolor = "rgb(" + rand() + ", " + rand() + ", " + rand() + ")";
+		jblockcolor = "rgb(" + rand() + ", " + rand() + ", " + rand() + ")";
+		lblockcolor = "rgb(" + rand() + ", " + rand() + ", " + rand() + ")";
+		sblockcolor = "rgb(" + rand() + ", " + rand() + ", " + rand() + ")";
+		zblockcolor = "rgb(" + rand() + ", " + rand() + ", " + rand() + ")";
+		
+		var tetris_board = document.getElementById("board");
+		var tetris_context = tetris_board.getContext("2d");
+		for (i=0; i<=chnums+1; i = i+1)
+		{
+			for (j=0; j<=cwnums+1; j=j+1)
+			{
+				if (cells[i][j] == 0) {tetris_context.fillStyle = outcolor;}
+				else if (cells[i][j] == 2) 
+				{
+					if (currtype == 0) {tetris_context.fillStyle = sqcolor;}
+					else if (currtype == 1) {tetris_context.fillStyle = linecolor;}
+					else if (currtype == 2) {tetris_context.fillStyle = tblockcolor;}
+					else if (currtype == 3) {tetris_context.fillStyle = jblockcolor;}
+					else if (currtype == 4) {tetris_context.fillStyle = lblockcolor;}
+					else if (currtype == 5) {tetris_context.fillStyle = sblockcolor;}
+					else if (currtype == 6) {tetris_context.fillStyle = zblockcolor;}
+				}
+				else if (cells[i][j] == 3) {tetris_context.fillStyle = sqcolor;}
+				else if (cells[i][j] == 4) {tetris_context.fillStyle = linecolor;}
+				else if (cells[i][j] == 5) {tetris_context.fillStyle = tblockcolor;}
+				else if (cells[i][j] == 6) {tetris_context.fillStyle = jblockcolor;}
+				else if (cells[i][j] == 7) {tetris_context.fillStyle = lblockcolor;}
+				else if (cells[i][j] == 8) {tetris_context.fillStyle = sblockcolor;}
+				else if (cells[i][j] == 9) {tetris_context.fillStyle = zblockcolor;}
+				else {tetris_context.fillStyle = backcolor;}
+				tetris_context.fillRect(j*cwidth, i*cwidth, cwidth, cwidth);
+			}
+		}
+		
+		var score_board = document.getElementById("scoreboard");
+		var score_context = score_board.getContext("2d");
+		score_board.width = score_board.width;
+		score_context.font = "bold 14px sans-serif";
+		score_context.textAlign = "left";
+		score_context.textBaseline = "top";
+		score_context.fillText("Controls:", cwidth, cwidth);
+		score_context.font = "bold 12px sans-serif";
+		score_context.fillText("w = rotate left", cwidth, cwidth*2);
+		score_context.fillText("a = move left", cwidth, cwidth*3);
+		score_context.fillText("s = rotate right", cwidth, cwidth*4);
+		score_context.fillText("d = move right", cwidth, cwidth*5);
+		score_context.fillText("spacebar = move down", cwidth, cwidth*6);
+		score_context.font = "bold 16px sans-serif";
+		score_context.fillText("Score:", cwidth, cwidth*8);
+		score_context.font = "bold 14px sans-serif";
+		score_context.fillText(""+score, cwidth, cwidth*9);
+		score_context.font = "bold 16px sans-serif";
+		score_context.fillText("Lines cleared:", cwidth, cwidth*11);
+		score_context.font = "bold 14px sans-serif";
+		score_context.fillText(""+cleared, cwidth, cwidth*12);
+		if (shoulddostuff == false)
+		{
+			score_context.font = "bold 24px sans-serif";
+			score_context.fillText("GAME OVER.", cwidth, cwidth*14);
+			score_context.font = "bold 30px sans-serif";
+			score_context.fillText("GG.", cwidth, cwidth*16);
+		}
+	}
+	
+	// returns a random number between 0 and 255
+	function rand()
+	{
+		return Math.floor(Math.random()*256);
+	}
+	
+	// CREATING NEW PIECES
+	
+	// turns the old piece into a permanent fixture and then creates a new piece
+	function newpiece()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{	
+				if (cells[i][j] == 2) 
+				{ 
+					cells[i][j] = types[currtype];
+				}
+			}
+		}
+		currtype = Math.floor(Math.random()*7);
+		currstate = 0;
+		if (currtype == 0) {newsquare();}
+		else if (currtype == 1) {newline();}
+		else if (currtype == 2) {newtblock();}
+		else if (currtype == 3) {newjblock();}
+		else if (currtype == 4) {newlblock();}
+		else if (currtype == 5) {newsblock();}
+		else if (currtype == 6) {newzblock();}
+	}
+	
+	function newline()
+	{
+		if (cells[1][5] != 1 || cells[1][4] != 1 || cells[1][6] != 1 || cells[1][7] != 1)
+		{
+			shoulddostuff = false;
+			drawboard();
+			return;
+		}
+		cells[1][5] = 2;
+		cells[1][6] = 2;
+		cells[1][4] = 2;
+		cells[1][7] = 2;
+		drawboard();
+	}
+	
+	function newsquare()
+	{
+		if (cells[1][5] != 1 || cells[1][6] != 1 || cells[2][6] != 1 || cells[2][5] != 1)
+		{
+			shoulddostuff = false;
+			drawboard();
+			return;
+		}
+		cells[1][5] = 2;
+		cells[1][6] = 2;
+		cells[2][5] = 2;
+		cells[2][6] = 2;
+		drawboard();
+	}
+	
+	function newtblock()
+	{
+		if (cells[1][5] != 1 || cells[2][4] != 1 || cells[2][6] != 1 || cells[2][5] != 1)
+		{
+			shoulddostuff = false;
+			drawboard();
+			return;
+		}
+		cells[1][5] = 2;
+		cells[2][5] = 2;
+		cells[2][4] = 2;
+		cells[2][6] = 2;
+		drawboard();
+	}
+	
+	function newjblock()
+	{
+		if (cells[2][5] != 1 || cells[1][4] != 1 || cells[2][6] != 1 || cells[2][4] != 1)
+		{
+			shoulddostuff = false;
+			drawboard();
+			return;
+		}
+		cells[1][4] = 2;
+		cells[2][4] = 2;
+		cells[2][5] = 2;
+		cells[2][6] = 2;
+		drawboard();
+	}
+	
+	function newlblock()
+	{
+		if (cells[1][6] != 1 || cells[2][4] != 1 || cells[2][6] != 1 || cells[2][5] != 1)
+		{
+			shoulddostuff = false;
+			drawboard();
+			return;
+		}
+		cells[1][6] = 2;
+		cells[2][6] = 2;
+		cells[2][5] = 2;
+		cells[2][4] = 2;
+		drawboard();
+	}
+	
+	function newsblock()
+	{
+		if (cells[1][5] != 1 || cells[2][4] != 1 || cells[1][6] != 1 || cells[2][5] != 1)
+		{
+			shoulddostuff = false;
+			drawboard();
+			return;
+		}
+		cells[1][5] = 2;
+		cells[1][6] = 2;
+		cells[2][5] = 2;
+		cells[2][4] = 2;
+		drawboard();
+	}
+	
+	function newzblock()
+	{
+		if (cells[1][5] != 1 || cells[1][4] != 1 || cells[2][6] != 1 || cells[2][5] != 1)
+		{
+			shoulddostuff = false;
+			drawboard();
+			return;
+		}
+		cells[1][5] = 2;
+		cells[1][4] = 2;
+		cells[2][5] = 2;
+		cells[2][6] = 2;
+		drawboard();
+	}
+	
+	// GENERIC MOVEMENT FUNCTIONS
+	
+	function candrop()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+			{
+				for (j=cwnums; j>=1; j=j-1)
+				{	
+					if (cells[i][j] == 2) 
+					{ 
+						if (cells[i+1][j] != 1 && cells[i+1][j] != 2) {return false;}
+					}
+				}
+			}
+		return true;
+	}
+	
+	function canleft()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+			{
+				for (j=cwnums; j>=1; j=j-1)
+				{	
+					if (cells[i][j] == 2) 
+					{ 
+						if (cells[i][j-1] != 1 && cells[i][j-1] != 2) {return false;}
+					}
+				}
+			}
+		return true;
+	}
+	
+	function canright()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+			{
+				for (j=cwnums; j>=1; j=j-1)
+				{	
+					if (cells[i][j] == 2) 
+					{ 
+						if (cells[i][j+1] != 1 && cells[i][j+1] != 2) {return false;}
+					}
+				}
+			}
+		return true;
+	}
+	
+	function dropcurrent()
+	{
+		if (candrop() && shoulddostuff)
+		{
+			for (i=chnums; i>= 1; i = i-1)
+			{
+				for (j=cwnums; j>=1; j=j-1)
+				{
+					if (cells[i][j] == 2) 
+					{ 
+						cells[i][j] = 1; 
+						cells[i+1][j] = 2;
+					}
+				}
+			}
+			drawboard();
+		}
+		else if (shoulddostuff)
+		{
+			score = score + 4;
+			newpiece();
+			clearrows();
+			clearrows();
+			clearrows();
+			clearrows();
+			if (cleared == 0) {timestep = 2000;}
+			else {timestep = 2000/cleared;}
+		}
+	}
+	
+	// moves the current piece to the left one square if possible
+	function moveleft()
+	{
+		if (canleft())
+		{
+			for (i=chnums; i>= 1; i = i-1)
+			{
+				for (j=1; j<=cwnums; j=j+1)
+				{
+					if (cells[i][j] == 2) 
+					{ 
+						cells[i][j] = 1; 
+						cells[i][j-1] = 2;
+					}
+				}
+			}
+			drawboard();
+		}
+	}
+	
+	// moves the current piece to the right one square if possible
+	function moveright()
+	{
+		if (canright())
+		{
+			for (i=chnums; i>= 1; i = i-1)
+			{
+				for (j=cwnums; j>=1; j = j-1)
+				{
+					if (cells[i][j] == 2) 
+					{ 
+						cells[i][j] = 1; 
+						cells[i][j+1] = 2;
+					}
+				}
+			}
+			drawboard();
+		}
+	}
+	
+	// ROTATION TIME!!!
+
+	
+	// rotates a line depending
+	function rotateline()
+	{
+		for (i=chnums; i>= 1; i=i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{
+				if (cells[i][j] == 2)
+				{
+					if (currstate == 0)
+					{
+						if (cells[i-1][j-1] != 1 || cells[i+1][j-1] != 1 || cells[i+2][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i-1][j-1] = 2;
+						cells[i+1][j-1] = 2;
+						cells[i+2][j-1] = 2;
+						cells[i][j] = 1;
+						cells[i][j-2] = 1;
+						cells[i][j-3] = 1;
+						currstate = 1;
+						drawboard();
+						return;
+					}
+					if (currstate == 1)
+					{
+						if (cells[i-2][j+1] != 1 || cells[i-2][j-1] != 1 || cells[i-2][j-2] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-1][j] = 1;
+						cells[i-3][j] = 1;
+						cells[i-2][j-1] = 2;
+						cells[i-2][j-2] = 2;
+						cells[i-2][j+1] = 2;
+						currstate = 0;
+						drawboard();
+						return;
+					}
+				}
+			}
+		}
+	}
+	
+	function rotatetblockR()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{
+				if (cells[i][j] == 2 && cells[i][j-1] == 2)
+				{
+					if (cells[i+1][j-1] != 1) {drawboard(); return;}
+					cells[i][j-2] = 1;
+					cells[i+1][j-1] = 2;
+					drawboard();
+					return;
+				}
+				if (cells[i][j] == 2 && cells[i-1][j+1] == 2 && cells[i-2][j] == 2)
+				{
+					if (cells[i-1][j-1] != 1) {drawboard(); return;}
+					cells[i-2][j] = 1;
+					cells[i-1][j-1] = 2;
+					drawboard();
+					return;
+				}
+				if (cells[i][j] == 2 && cells[i-1][j+1] == 2 && cells[i-1][j+1] == 2)
+				{
+					if (cells[i-2][j] != 1) {drawboard(); return;}
+					cells[i-1][j+1] = 1;
+					cells[i-2][j] = 2;
+					drawboard();
+					return;
+				}
+				if (cells[i][j] == 2 && cells[i-1][j-1] == 2 && cells[i-2][j] == 2)
+				{
+					if (cells[i-1][j+1] != 1) {drawboard(); return;}
+					cells[i][j] = 1;
+					cells[i-1][j+1] = 2;
+					drawboard();
+					return;
+				}
+			}
+		}			
+	}
+	
+	function rotatetblockL()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{
+				if (cells[i][j] == 2 && cells[i][j-1] == 2)
+				{
+					if (cells[i+1][j-1] != 1) {drawboard(); return;}
+					cells[i][j] = 1;
+					cells[i+1][j-1] = 2;
+					drawboard();
+					return;
+				}
+				if (cells[i][j] == 2 && cells[i-1][j+1] == 2 && cells[i-2][j] == 2)
+				{
+					if (cells[i-1][j-1] != 1) {drawboard(); return;}
+					cells[i][j] = 1;
+					cells[i-1][j-1] = 2;
+					drawboard();
+					return;
+				}
+				if (cells[i][j] == 2 && cells[i-1][j+1] == 2 && cells[i-1][j+1] == 2)
+				{
+					if (cells[i-2][j] != 1) {drawboard(); return;}
+					cells[i-1][j-1] = 1;
+					cells[i-2][j] = 2;
+					drawboard();
+					return;
+				}
+				if (cells[i][j] == 2 && cells[i-1][j-1] == 2 && cells[i-2][j] == 2)
+				{
+					if (cells[i-1][j+1] != 1) {drawboard(); return;}
+					cells[i-2][j] = 1;
+					cells[i-1][j+1] = 2;
+					drawboard();
+					return;
+				}
+			}
+		}
+	}
+	
+	function rotatejblockR()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{
+				if (cells[i][j] == 2)
+				{
+					if (currstate == 0)
+					{
+						if (cells[i-1][j] !=1 || cells[i-1][j-1] != 1 || cells[i+1][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i][j-2] = 1;
+						cells[i-1][j-2] = 1;
+						cells[i-1][j] = 2;
+						cells[i-1][j-1] = 2;
+						cells[i+1][j-1] = 2;
+						currstate = 1;
+						drawboard();
+						return;
+					}
+					if (currstate == 1)
+					{
+						if (cells[i][j+1] != 1 || cells[i-1][j+1] != 1 || cells[i-1][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-2][j] = 1;
+						cells[i-2][j+1] = 1;
+						cells[i][j+1] = 2;
+						cells[i-1][j+1] = 2;
+						cells[i-1][j-1] = 2;
+						currstate = 2;
+						drawboard();
+						return;
+					}
+					if (currstate == 2)
+					{
+						if (cells[i][j-1] != 1 || cells[i][j-2] != 1 || cells[i-2][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-1][j] = 1;
+						cells[i-1][j-2] = 1;
+						cells[i][j-1] = 2;
+						cells[i][j-2] = 2;
+						cells[i-2][j-1] = 2;
+						currstate = 3;
+						drawboard();
+						return;
+					}
+					if (currstate == 3)
+					{
+						if (cells[i-1][j+1] != 1 || cells[i-1][j-1] != 1 || cells[i-2][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i][j-1] = 1;
+						cells[i-2][j] = 1;
+						cells[i-1][j+1] = 2;
+						cells[i-1][j-1] = 2;
+						cells[i-2][j-1] = 2;
+						currstate = 0;
+						drawboard();
+						return;
+					}
+				}
+			}
+		}
+	}
+	
+	function rotatejblockL()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{
+				if (cells[i][j] == 2)
+				{
+					if (currstate == 0)
+					{
+						if (cells[i+1][j-1] != 1 || cells[i+1][j-2] != 1 || cells[i-1][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i][j-2] = 1;
+						cells[i-1][j-2] = 1;
+						cells[i+1][j-1] = 2;
+						cells[i+1][j-2] = 2;
+						cells[i-1][j-1] = 2;
+						currstate = 3;
+						drawboard();
+						return;
+					}
+					if (currstate == 1)
+					{
+						if (cells[i-1][j+1] != 1 || cells[i-1][j-1] != 1 || cells[i-2][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-2][j] = 1;
+						cells[i-2][j+1] = 1;
+						cells[i-1][j+1] = 2;
+						cells[i-1][j-1] = 2;
+						cells[i-2][j-1] = 2;
+						currstate = 0;
+						drawboard();
+						return;
+					}
+					if (currstate == 2)
+					{
+						if (cells[i][j-1] != 1 || cells[i-2][j] != 1 || cells[i-2][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-1][j] = 1;
+						cells[i-1][j-2] = 1;
+						cells[i][j-1] = 2;
+						cells[i-2][j] = 2;
+						cells[i-2][j-1] = 2;
+						currstate = 1;
+						drawboard();
+						return;
+					}
+					if (currstate == 3)
+					{
+						if (cells[i][j+1] != 1 || cells[i-1][j+1] != 1 || cells[i-1][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i][j-1] = 1;
+						cells[i-2][j] = 1;
+						cells[i][j+1] = 2;
+						cells[i-1][j+1] = 2;
+						cells[i-1][j-1] = 2;
+						currstate = 2;
+						drawboard();
+						return;
+					}
+				}
+			}
+		}
+	}
+	
+	function rotatelblockR()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{
+				if (cells[i][j] == 2)
+				{
+					if (currstate == 0)
+					{
+						if (cells[i+1][j] != 1 || cells[i+1][j-1] != 1 || cells[i-1][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-1][j] = 1;
+						cells[i][j-2] = 1;
+						cells[i+1][j] = 2;
+						cells[i+1][j-1] = 2;
+						cells[i-1][j-1] = 2;
+						currstate = 1;
+						drawboard();
+						return;
+					}
+					if (currstate == 1)
+					{
+						if (cells[i-1][j] != 1 || cells[i][j-2] != 1 || cells[i-1][j-2] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i][j-1] = 1;
+						cells[i-2][j-1] = 1;
+						cells[i-1][j] = 2;
+						cells[i][j-2] = 2;
+						cells[i-1][j-2] = 2;
+						currstate = 2;
+						drawboard();
+						return;
+					}
+					if (currstate == 2)
+					{
+						if (cells[i-2][j] != 1 || cells[i-2][j+1] != 1 || cells[i][j+1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-1][j] = 1;
+						cells[i-1][j+2] = 1;
+						cells[i-2][j] = 2;
+						cells[i-2][j+1] = 2;
+						cells[i][j+1] = 2;
+						currstate = 3;
+						drawboard();
+						return;
+					}
+					if (currstate == 3)
+					{
+						if (cells[i-1][j+1] != 1 || cells[i-1][j-1] != 1 || cells[i-2][j+1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-2][j] = 1;
+						cells[i-2][j-1] = 1;
+						cells[i-1][j+1] = 2;
+						cells[i-1][j-1] = 2;
+						cells[i-2][j+1] = 2;
+						currstate = 0;
+						drawboard();
+						return;
+					}
+				}
+			}
+		}
+	}
+	
+	function rotatelblockL()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{
+				if (cells[i][j] == 2)
+				{
+					if (currstate == 0)
+					{
+						if (cells[i+1][j-1] != 1 || cells[i-1][j-1] != 1 || cells[i-1][j-2] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i][j-2] = 1;
+						cells[i-1][j] = 1;
+						cells[i+1][j-1] = 2;
+						cells[i-1][j-1] = 2;
+						cells[i-1][j-2] = 2;
+						currstate = 3;
+						drawboard();
+						return;
+					}
+					if (currstate == 1)
+					{
+						if (cells[i-1][j] != 1 || cells[i-2][j] != 1 || cells[i-1][j-2] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i][j-1] = 1;
+						cells[i-2][j-1] = 1;
+						cells[i-1][j] = 2;
+						cells[i-2][j] = 2;
+						cells[i-1][j-2] = 2;
+						currstate = 0;
+						drawboard();
+						return;
+					}
+					if (currstate == 2)
+					{
+						if (cells[i][j+1] != 1 || cells[i][j+2] != 1 || cells[i-2][j+1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-1][j] = 1;
+						cells[i-1][j+2] = 1;
+						cells[i][j+1] = 2;
+						cells[i][j+2] = 2;
+						cells[i-2][j+1] = 2;
+						currstate = 1;
+						drawboard();
+						return;
+					}
+					if (currstate == 3)
+					{
+						if (cells[i-1][j-1] != 1 || cells[i-1][j+1] != 1 || cells[i][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-2][j] = 1;
+						cells[i-2][j-1] = 1;
+						cells[i-1][j-1] = 2;
+						cells[i-1][j+1] = 2;
+						cells[i][j-1] = 2;
+						currstate = 2;
+						drawboard();
+						return;
+					}
+				}
+			}
+		}
+	}
+	
+	function rotatesblock()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{
+				if (cells[i][j] == 2)
+				{
+					if (currstate == 0)
+					{
+						if (cells[i-2][j] != 1 || cells[i][j+1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i][j-1] = 1;
+						cells[i-2][j] = 2;
+						cells[i][j+1] = 2;
+						currstate = 1;
+						drawboard();
+						return;
+					}
+					if (currstate == 1)
+					{
+						if (cells[i][j-1] != 1 || cells[i][j-2] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-2][j-1] = 1;
+						cells[i][j-1] = 2;
+						cells[i][j-2] = 2;
+						currstate = 0;
+						drawboard();
+						return;
+					}
+				}
+			}
+		}
+	}
+	
+	function rotatezblock()
+	{
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			for (j=cwnums; j>=1; j=j-1)
+			{
+				if (cells[i][j] == 2)
+				{
+					if (currstate == 0)
+					{
+						if (cells[i-1][j] != 1 || cells[i-2][j] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i][j] = 1;
+						cells[i-1][j-2] = 1;
+						cells[i-1][j] = 2;
+						cells[i-2][j] = 2;
+						currstate = 1;
+						drawboard();
+						return;
+					}
+					if (currstate == 1)
+					{
+						if (cells[i][j+1] != 1 || cells[i-1][j-1] != 1)
+						{
+							drawboard();
+							return;
+						}
+						cells[i-1][j+1] = 1;
+						cells[i-2][j+1] = 1;
+						cells[i][j+1] = 2;
+						cells[i-1][j-1] = 2;
+						currstate = 0;
+						drawboard();
+						return;
+					}
+				}
+			}
+		}
+	}
+	
+	// handles rotations to the right for different current pieces
+	function rotateR()
+	{
+		if (!shoulddostuff) {return;}
+		else if (currtype == 0)
+		{
+			drawboard();
+			return;
+		}
+		else if (currtype == 1)
+		{
+			rotateline();
+			return;
+		}
+		else if (currtype == 2)
+		{
+			rotatetblockR();
+			return;
+		}
+		else if (currtype == 3)
+		{
+			rotatejblockR();
+			return;
+		}
+		else if (currtype == 4)
+		{
+			rotatelblockR();
+			return;
+		}
+		else if (currtype == 5)
+		{
+			rotatesblock();
+			return;
+		}
+		else if (currtype == 6)
+		{
+			rotatezblock();
+			return;
+		}
+	}
+	
+	// handles rotations to the left for different current pieces
+	function rotateL()
+	{
+		if (!shoulddostuff) {return;}
+		else if (currtype == 0)
+		{
+			drawboard();
+			return;
+		}
+		else if (currtype == 1)
+		{
+			rotateline();
+			return;
+		}
+		else if (currtype == 2)
+		{
+			rotatetblockL();
+			return;
+		}
+		else if (currtype == 3)
+		{
+			rotatejblockL();
+			return;
+		}
+		else if (currtype == 4)
+		{
+			rotatelblockL();
+			return;
+		}
+		else if (currtype == 5)
+		{
+			rotatesblock();
+			return;
+		}
+		else if (currtype == 6)
+		{
+			rotatezblock();
+			return;
+		}
+	}
+	
+	// handles key press events
+	function whatdoido(event)
+	{
+		var getChar = event.keyCode;
+		//alert(getChar);
+		if (getChar == 97) { moveleft();}
+		else if (getChar == 100) { moveright();}
+		else if (getChar == 119) {rotateR();}
+		else if (getChar == 115) {rotateL();}
+		else if (getChar == 32) { dropcurrent();}
+	}
+	
+	function turn()
+	{
+		dropcurrent();
+		doStepTimeout=setTimeout('turn()', timestep);
+	}
+	
+	function stopTurn()
+	{
+		clearTimeout(doStepTimeout);
+	}
+	
+	// checks if a specific row can be cleared
+	function shouldclear(i)
+	{
+		if (shoulddostuff == false) {return false;}
+		for (j=cwnums; j>=1; j=j-1)
+		{
+			if (cells[i][j] == 1 || cells[i][j] == 2) {return false;}
+		}
+		return true;
+	}
+	
+	// clears rows that need to be cleared
+	function clearrows()
+	{
+		//alert("clearing");
+		for (i=chnums; i>= 1; i = i-1)
+		{
+			if (shouldclear(i))
+			{
+				//alert("should clear a row");
+				shoulddostuff = false;
+				cleared = cleared + 1;
+				score = score + 10;
+				for (m=i-1; m>=1; m = m-1)
+				{
+					for (n=cwnums; n>=1; n = n-1)
+					{
+						if (cells[m][n] != 2 && cells[m+1][n] != 2 && cells[m+1][n] != 0) {cells[m+1][n] = cells[m][n];}
+					}
+				}
+				for (n=cwnums; n>=1; n = n-1)
+				{
+					if (cells[1][n] != 2) {cells[1][n] = 1;}
+				}
+				shoulddostuff = true;
+			}
+		}
+		drawboard();
+	}
+	
+	</script>
+</head>
+<p>  Falling Blocks! </p>
+<body onLoad="initialize()" onkeypress="whatdoido(event)" >
+<canvas id="board" width="300" height="600" onclick="drawstuff()" ></canvas>
+<canvas id="scoreboard" width="200" height="600"" ></canvas>
+</body>
+</html>
